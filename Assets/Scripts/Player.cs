@@ -6,12 +6,14 @@ using UnityEngine;
 public class Player : MonoBehaviour
 {
     public WeaponPickUp startWeapon;
+    public RotateCenter weaponRotationObject;
     public Transform weaponsParent;
     public List<Weapon> weapons = new List<Weapon>();
     public int health;
     public int playerPower;
     public ParticleSystem blood;
     public bool isAlive = true;
+    public bool isPlayer = true;
     [SerializeField] private Animator animator;
 
     private Vector2[] rotationPositions = new Vector2[]
@@ -24,7 +26,15 @@ public class Player : MonoBehaviour
 
     private void Start()
     {
-        AddWeapon(startWeapon);
+        if(this.gameObject.tag == "Enemy")
+        {
+            AddEnemyWeapon(startWeapon);
+        }
+        else
+        {
+            AddWeapon(startWeapon);
+        }
+        
         animator = GetComponent<Animator>();
     }
 
@@ -33,10 +43,25 @@ public class Player : MonoBehaviour
         if(health <= 0 && isAlive) 
         {
             isAlive = false;
-            if (this.GetComponent<PlayerMovement>())
+            if (isPlayer)
             {
-                this.GetComponent<PlayerMovement>().enabled = false;
-                if(isAlive == false)
+                if (this.GetComponent<PlayerMovement>())
+                {
+                    this.GetComponent<PlayerMovement>().enabled = false;
+                    if (isAlive == false)
+                    {
+                        RemoveWeapons();
+                        animator.SetBool("Idle", false);
+                        animator.SetBool("isRunning", false);
+                        blood.Play();
+                        animator.SetTrigger("Dead");
+                        StartCoroutine(AfterDeath());
+                    }
+                }
+            }
+            else
+            {
+                if (isAlive == false)
                 {
                     RemoveWeapons();
                     animator.SetBool("Idle", false);
@@ -44,8 +69,9 @@ public class Player : MonoBehaviour
                     blood.Play();
                     animator.SetTrigger("Dead");
                     StartCoroutine(AfterDeath());
-                }          
-            }           
+                }
+            }
+                  
         }
     }
 
@@ -74,6 +100,23 @@ public class Player : MonoBehaviour
         CalculateOverPower();
     }
 
+    public void AddEnemyWeapon(WeaponPickUp weapon)
+    {
+        GameObject newWeapon = Instantiate(weapon.weaponPrefab, weapon.weaponPrefab.transform.localPosition, weapon.weaponPrefab.transform.localRotation, weaponsParent);
+        newWeapon.transform.parent = weaponsParent;
+        newWeapon.transform.localPosition = weapon.weaponPrefab.transform.localPosition;
+        newWeapon.transform.localRotation = weapon.weaponPrefab.transform.localRotation;
+        newWeapon.GetComponent<Weapon>().health = weapon.health;
+        newWeapon.GetComponent<Weapon>().damage = weapon.damage;
+        newWeapon.GetComponent<Weapon>().player = this;
+        newWeapon.GetComponent<SpriteRenderer>().sprite = weapon.sprite;
+        newWeapon.gameObject.tag = "EnemyWeapon";
+        weapons.Add(newWeapon.GetComponent<Weapon>());
+        
+        SetupWeapons();
+        CalculateOverPower();
+    }
+
     private void SetupWeapons()
     {
         int amount = weapons.Count;
@@ -84,6 +127,10 @@ public class Player : MonoBehaviour
             we.transform.localPosition = GetInterpolatedPosition(i * rotationChange);
             we.transform.localRotation = Quaternion.Euler(0, 0, i * rotationChange + 45f);
             i++;
+            if (isPlayer)
+                we.gameObject.tag = "AllyWeapon";
+            else
+                we.gameObject.tag = "EnemyWeapon";
         }
     }
 
@@ -124,6 +171,9 @@ public class Player : MonoBehaviour
         yield return new WaitForSeconds(0.3f);
         animator.SetTrigger("Disapear");
         yield return new WaitForSeconds(0.3f);
+
+        if (!isPlayer)
+            Destroy(this.gameObject);
 
         float minX = -15f;   // Minimalna wartoœæ X
         float maxX = 15f;    // Maksymalna wartoœæ X

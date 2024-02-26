@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Ally
   - PickUp
+  - Enemy
+  - EnemyWeapon
+  - AllyWeapon
   layers:
   - Default
   - TransparentFX
